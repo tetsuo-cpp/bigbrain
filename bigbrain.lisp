@@ -7,7 +7,7 @@
 (defparameter *instruction-pos* 0)
 (defparameter *data* (make-array 30000 :initial-element 0))
 (defparameter *data-pos* 0)
-(defparameter *loop-stack* (make-array 0 :adjustable t))
+(defparameter *loop-stack* (make-array 0 :fill-pointer 0 :adjustable t))
 
 (defun read-instruction ()
   (when (< *instruction-pos* (length *instructions*))
@@ -59,7 +59,18 @@
 (defun loop-begin ()
   (assert (< *data-pos* (length *data*)))
   (assert (< *instruction-pos* (length *instructions*)))
-  )
+  (when (eq (elt *data* *data-pos*) 0)
+    (vector-push-extend *instruction-pos* *loop-stack*))
+  ;; Keep track of nested loops.
+  (do ((stack-size 0 0)
+       (cur-ins (read-instruction) (read-instruction)))
+      ((not cur-ins)
+       (not (eql cur-ins #\]))
+       (eql stack-size 0))
+    (when (eql cur-ins #\[)
+      (icnf stack-size))
+    (when (eql cur-ins #\])
+      (decf stack-size))))
 
 (defun loop-end ()
   (assert (< *data-pos* (length *data*)))
