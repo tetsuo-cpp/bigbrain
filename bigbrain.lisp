@@ -3,7 +3,7 @@
   (:use :common-lisp))
 (in-package :bigbrain)
 
-(defparameter *instructions* "[asd[fs]df]sadf")
+(defvar *instructions*)
 (defparameter *instruction-pos* 0)
 (defparameter *data* (make-array 30000 :initial-element 0))
 (defparameter *data-pos* 0)
@@ -16,7 +16,10 @@
       x)))
 
 (defun load-instructions (filename)
-  (format t "loading program ~A~%" filename))
+  (with-open-file (in filename :direction :input :if-does-not-exist nil)
+    (when in
+      (setf *instructions* (make-string (file-length in)))
+      (read-sequence *instructions* in))))
 
 (defun execute-instruction (ins)
   (cond
