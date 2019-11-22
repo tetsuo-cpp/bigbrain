@@ -15,5 +15,7 @@ exec ros -Q -- $0 "$@"
 
 (defun main (&rest argv)
   (declare (ignorable argv))
-  (bigbrain:run-program "bsort.b"))
+  (if (eq (length argv) 1)
+      (bigbrain:run-program (first argv))
+      (error "usage: bigbrain <file>")))
 ;;; vim: set ft=lisp lisp:
