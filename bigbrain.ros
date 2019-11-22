@@ -1,0 +1,19 @@
+#!/bin/sh
+#|-*- mode:lisp -*-|#
+#|
+exec ros -Q -- $0 "$@"
+|#
+(progn ;;init forms
+  (ros:ensure-asdf)
+  (load "bigbrain.lisp" :verbose nil)
+  ;;#+quicklisp(ql:quickload '() :silent t)
+  )
+
+(defpackage :ros.script.bigbrain.3783052745
+  (:use :cl :bigbrain))
+(in-package :ros.script.bigbrain.3783052745)
+
+(defun main (&rest argv)
+  (declare (ignorable argv))
+  (bigbrain:run-program "bsort.b"))
+;;; vim: set ft=lisp lisp:

@@ -1,6 +1,7 @@
 (in-package :cl-user)
 (defpackage :bigbrain
-  (:use :common-lisp))
+  (:use :common-lisp)
+  (:export :run-program))
 (in-package :bigbrain)
 
 (defvar *instructions*)
@@ -11,9 +12,7 @@
 
 (defun read-instruction ()
   (when (< *instruction-pos* (length *instructions*))
-    (let ((x (elt *instructions* *instruction-pos*)))
-      (incf *instruction-pos*)
-      x)))
+    (elt *instructions* *instruction-pos*)))
 
 (defun load-instructions (filename)
   (with-open-file (in filename :direction :input :if-does-not-exist nil)
@@ -30,8 +29,7 @@
     ((eql ins #\.) (output-data))
     ((eql ins #\,) (input-data))
     ((eql ins #\[) (loop-begin))
-    ((eql ins #\]) (loop-end))
-    (t (format t "ignoring instruction ~A~%" ins))))
+    ((eql ins #\]) (loop-end))))
 
 (defun incr-pointer ()
   (if (>= *data-pos* (length *data*))
@@ -53,27 +51,30 @@
 
 (defun output-data ()
   (assert (< *data-pos* (length *data*)))
-  (print (elt *data* *data-pos*)))
+  (format t "~a" (code-char (elt *data* *data-pos*))))
 
 (defun input-data ()
   (assert (< *data-pos* (length *data*)))
-  (setf (elt *data* *data-pos*) (read-char)))
+  (setf (elt *data* *data-pos*) (char-code (read-char))))
 
 (defun loop-begin ()
   (assert (< *data-pos* (length *data*)))
   (assert (< *instruction-pos* (length *instructions*)))
-  (when (not (eq (elt *data* *data-pos*) 0))
-    (vector-push-extend *instruction-pos* *loop-stack*))
-  ;; Keep track of nested loops.
-  (do ((stack-size 0 stack-size)
-       (cur-ins (read-instruction) (read-instruction)))
-      ((or (not cur-ins)
-           (and (eql stack-size 1)
-                (eql cur-ins #\]))))
-    (when (eql cur-ins #\[)
-      (incf stack-size))
-    (when (eql cur-ins #\])
-      (decf stack-size))))
+  (if (not (eq (elt *data* *data-pos*) 0))
+      (vector-push-extend *instruction-pos* *loop-stack*)
+      ;; Keep track of nested loops.
+      (progn
+        (incf *instruction-pos*)
+        (do ((stack-size 0)
+             (cur-ins (read-instruction) (read-instruction)))
+            ((or (not cur-ins)
+                 (and (eql stack-size 0)
+                      (eql cur-ins #\]))))
+          (when (eql cur-ins #\[)
+            (incf stack-size))
+          (when (eql cur-ins #\])
+            (decf stack-size))
+          (incf *instruction-pos*)))))
 
 (defun loop-end ()
   (assert (< *data-pos* (length *data*)))
@@ -90,4 +91,5 @@
   ;; How do I do this properly?
   (do ((ins (read-instruction) (read-instruction)))
       ((not ins))
-    (execute-instruction ins)))
+    (execute-instruction ins)
+    (incf *instruction-pos*)))
