@@ -55,7 +55,7 @@
 
 (defun input-data ()
   (assert (< *data-pos* (length *data*)))
-  (setf (elt *data* *data-pos*) (char-code (read-char))))
+  (setf (elt *data* *data-pos*) (char-code (read-char t nil (code-char 0)))))
 
 (defun loop-begin ()
   (assert (< *data-pos* (length *data*)))
