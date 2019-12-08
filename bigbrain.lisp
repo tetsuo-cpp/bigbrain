@@ -1,66 +1,59 @@
 (in-package :cl-user)
 (defpackage :bigbrain
-  (:use :common-lisp)
-  (:export :run-program))
+  (:use :cl)
+  (:export :run-program :interpreter-error))
 (in-package :bigbrain)
 
+(defconstant +data-size+ 30000)
 (defvar *instructions*)
 (defparameter *instruction-pos* 0)
-(defparameter *data* (make-array 30000 :initial-element 0))
+(defparameter *data* (make-array +data-size+ :initial-element 0))
 (defparameter *data-pos* 0)
 (defparameter *loop-stack* (make-array 0 :fill-pointer 0 :adjustable t))
 
+(define-condition interpreter-error (error) ())
+
 (defun read-instruction ()
   (when (< *instruction-pos* (length *instructions*))
-    (elt *instructions* *instruction-pos*)))
+    (aref *instructions* *instruction-pos*)))
 
 (defun load-instructions (filename)
-  (with-open-file (in filename :direction :input :if-does-not-exist nil)
-    (when in
-      (setf *instructions* (make-string (file-length in)))
-      (read-sequence *instructions* in))))
-
-(defun execute-instruction (ins)
-  (cond
-    ((eql ins #\>) (incr-pointer))
-    ((eql ins #\<) (decr-pointer))
-    ((eql ins #\+) (incr-data))
-    ((eql ins #\-) (decr-data))
-    ((eql ins #\.) (output-data))
-    ((eql ins #\,) (input-data))
-    ((eql ins #\[) (loop-begin))
-    ((eql ins #\]) (loop-end))))
+  (with-open-file (file filename :direction :input)
+    (setf *instructions* (make-string (file-length file)))
+    (read-sequence *instructions* file)))
 
 (defun incr-pointer ()
   (if (>= *data-pos* (length *data*))
-      (error "incremented data pointer out of bounds")
+      (error 'interpreter-error "Incremented data pointer out of bounds")
       (incf *data-pos*)))
 
 (defun decr-pointer ()
   (if (<= *data-pos* 0)
-      (error "decremented data pointer out of bounds")
+      (error 'interpreter-error "Decremented data pointer out of bounds")
       (decf *data-pos*)))
 
 (defun incr-data ()
   (assert (< *data-pos* (length *data*)))
-  (incf (elt *data* *data-pos*)))
+  (incf (aref *data* *data-pos*)))
 
 (defun decr-data ()
   (assert (< *data-pos* (length *data*)))
-  (decf (elt *data* *data-pos*)))
+  (decf (aref *data* *data-pos*)))
 
 (defun output-data ()
   (assert (< *data-pos* (length *data*)))
-  (format t "~a" (code-char (elt *data* *data-pos*))))
+  (format t "~a" (code-char (aref *data* *data-pos*))))
 
 (defun input-data ()
   (assert (< *data-pos* (length *data*)))
-  (setf (elt *data* *data-pos*) (char-code (read-char t nil (code-char 0)))))
+  (let* ((zero-char (code-char 0))
+         (input-char (char-code (read-char t nil zero-char))))
+    (setf (aref *data* *data-pos*) input-char)))
 
 (defun loop-begin ()
   (assert (< *data-pos* (length *data*)))
   (assert (< *instruction-pos* (length *instructions*)))
-  (if (not (eq (elt *data* *data-pos*) 0))
+  (if (not (eql (aref *data* *data-pos*) 0))
       (vector-push-extend *instruction-pos* *loop-stack*)
       ;; Keep track of nested loops.
       (progn
@@ -79,17 +72,27 @@
 (defun loop-end ()
   (assert (< *data-pos* (length *data*)))
   (when (eql (length *loop-stack*) 0)
-    (error "encountered loop end without a corresponding loop begin"))
-  (if (eql (elt *data* *data-pos*) 0)
+    (error 'interpreter-error "Encountered loop end without a corresponding loop begin"))
+  (if (eql (aref *data* *data-pos*) 0)
       (vector-pop *loop-stack*)
-      (setf *instruction-pos* (elt *loop-stack* (- (length *loop-stack*) 1)))))
+      (setf *instruction-pos* (aref *loop-stack* (- (length *loop-stack*) 1)))))
+
+(defun execute-instruction (ins)
+  (case ins
+    (#\> (incr-pointer))
+    (#\< (decr-pointer))
+    (#\+ (incr-data))
+    (#\- (decr-data))
+    (#\. (output-data))
+    (#\, (input-data))
+    (#\[ (loop-begin))
+    (#\] (loop-end))))
 
 (defun run-program (filename)
   (setf *instruction-pos* 0
         *data-pos* 0)
   (load-instructions filename)
-  ;; How do I do this properly?
-  (do ((ins (read-instruction) (read-instruction)))
-      ((not ins))
-    (execute-instruction ins)
-    (incf *instruction-pos*)))
+  (let ((ins))
+    (loop while (setf ins (read-instruction)) do
+         (execute-instruction ins)
+         (incf *instruction-pos*))))

@@ -5,7 +5,8 @@ exec ros -Q -- $0 "$@"
 |#
 (progn ;;init forms
   (ros:ensure-asdf)
-  (load "bigbrain.lisp" :verbose nil)
+  ;; (load "bigbrain.lisp")
+  (asdf:load-system 'bigbrain)
   ;;#+quicklisp(ql:quickload '() :silent t)
   )
 
@@ -14,8 +15,9 @@ exec ros -Q -- $0 "$@"
 (in-package :ros.script.bigbrain.3783052745)
 
 (defun main (&rest argv)
-  (declare (ignorable argv))
   (if (eq (length argv) 1)
-      (bigbrain:run-program (first argv))
-      (error "usage: bigbrain <file>")))
+      (handler-case
+          (bigbrain:run-program (first argv))
+        (bigbrain:interpreter-error (e) (format t "bigbrain error: ~a.~%" e)))
+      (format t "Usage: bigbrain <file>~%Arguments were: ~a~%" argv)))
 ;;; vim: set ft=lisp lisp:
