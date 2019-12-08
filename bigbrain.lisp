@@ -13,6 +13,16 @@
 
 (define-condition interpreter-error (error) ())
 
+(defmacro defop (name parameters &body body)
+  `(defun ,name ,parameters
+     (assert
+      (and
+       (>= *instruction-pos* 0)
+       (< *instruction-pos* (length *instructions*))
+       (>= *data-pos* 0)
+       (< *data-pos* (length *data*))))
+     ,@body))
+
 (defun read-instruction ()
   (when (< *instruction-pos* (length *instructions*))
     (aref *instructions* *instruction-pos*)))
@@ -22,37 +32,31 @@
     (setf *instructions* (make-string (file-length file)))
     (read-sequence *instructions* file)))
 
-(defun incr-pointer ()
+(defop incr-pointer ()
   (if (>= *data-pos* (length *data*))
       (error 'interpreter-error "Incremented data pointer out of bounds")
       (incf *data-pos*)))
 
-(defun decr-pointer ()
+(defop decr-pointer ()
   (if (<= *data-pos* 0)
       (error 'interpreter-error "Decremented data pointer out of bounds")
       (decf *data-pos*)))
 
-(defun incr-data ()
-  (assert (< *data-pos* (length *data*)))
+(defop incr-data ()
   (incf (aref *data* *data-pos*)))
 
-(defun decr-data ()
-  (assert (< *data-pos* (length *data*)))
+(defop decr-data ()
   (decf (aref *data* *data-pos*)))
 
-(defun output-data ()
-  (assert (< *data-pos* (length *data*)))
+(defop output-data ()
   (format t "~a" (code-char (aref *data* *data-pos*))))
 
-(defun input-data ()
-  (assert (< *data-pos* (length *data*)))
+(defop input-data ()
   (let* ((zero-char (code-char 0))
          (input-char (char-code (read-char t nil zero-char))))
     (setf (aref *data* *data-pos*) input-char)))
 
-(defun loop-begin ()
-  (assert (< *data-pos* (length *data*)))
-  (assert (< *instruction-pos* (length *instructions*)))
+(defop loop-begin ()
   (if (not (eql (aref *data* *data-pos*) 0))
       (vector-push-extend *instruction-pos* *loop-stack*)
       ;; Keep track of nested loops.
@@ -69,7 +73,7 @@
             (decf stack-size))
           (incf *instruction-pos*)))))
 
-(defun loop-end ()
+(defop loop-end ()
   (assert (< *data-pos* (length *data*)))
   (when (eql (length *loop-stack*) 0)
     (error 'interpreter-error "Encountered loop end without a corresponding loop begin"))
