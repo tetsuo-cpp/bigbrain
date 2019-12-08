@@ -13,6 +13,7 @@
 
 (define-condition interpreter-error (error) ())
 
+;; Assert interpreter state before every op.
 (defmacro defop (name parameters &body body)
   `(defun ,name ,parameters
      (assert
@@ -74,7 +75,6 @@
           (incf *instruction-pos*)))))
 
 (defop loop-end ()
-  (assert (< *data-pos* (length *data*)))
   (when (eql (length *loop-stack*) 0)
     (error 'interpreter-error "Encountered loop end without a corresponding loop begin"))
   (if (eql (aref *data* *data-pos*) 0)
