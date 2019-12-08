@@ -18,6 +18,7 @@ exec ros -Q -- $0 "$@"
   (if (eq (length argv) 1)
       (handler-case
           (bigbrain:run-program (first argv))
-        (bigbrain:interpreter-error (e) (format t "bigbrain error: ~a.~%" e)))
+        (bigbrain:interpreter-error (e) (format t "bigbrain error: ~a.~%" e))
+        (error (e) (format t "error: ~a.~%" e)))
       (format t "Usage: bigbrain <file>~%Arguments were: ~a~%" argv)))
 ;;; vim: set ft=lisp lisp:
